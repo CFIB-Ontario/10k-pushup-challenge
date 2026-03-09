@@ -619,6 +619,30 @@
         </div>
 
         <div class="input-section">
+            <div class="section-title" style="margin-bottom: 20px;">Log Session</div>
+            
+            <div style="background: rgba(255, 69, 0, 0.05); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(255, 69, 0, 0.2);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; color: var(--text-muted); font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px;">Date</label>
+                        <input type="date" id="customDate" style="width: 100%; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 69, 0, 0.3); border-radius: 6px; padding: 10px; font-family: 'Barlow', sans-serif; color: var(--text); outline: none;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; color: var(--text-muted); font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px;">Time</label>
+                        <input type="time" id="customTime" style="width: 100%; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 69, 0, 0.3); border-radius: 6px; padding: 10px; font-family: 'Barlow', sans-serif; color: var(--text); outline: none;">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; color: var(--text-muted); font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px;">Amount</label>
+                        <input type="number" id="customAmountWithDate" placeholder="Number of pushups" min="1" max="10000" style="width: 100%; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 69, 0, 0.3); border-radius: 6px; padding: 10px; font-family: 'Barlow', sans-serif; font-size: 1rem; color: var(--text); outline: none;">
+                    </div>
+                    <button onclick="addCustomWithDateTime()" style="padding: 10px 30px;"><span>Log Session</span></button>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin: 20px 0; color: var(--text-muted); font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px;">Or Quick Add</div>
+
             <div class="quick-add">
                 <button onclick="addPushups(10)"><span>+10</span></button>
                 <button onclick="addPushups(20)"><span>+20</span></button>
@@ -705,6 +729,58 @@
             }
         }
 
+        // Add custom with date and time
+        function addCustomWithDateTime() {
+            const dateInput = document.getElementById('customDate');
+            const timeInput = document.getElementById('customTime');
+            const amountInput = document.getElementById('customAmountWithDate');
+            
+            const amount = parseInt(amountInput.value);
+            
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            let timestamp;
+            if (dateInput.value && timeInput.value) {
+                // Use custom date and time
+                timestamp = new Date(dateInput.value + 'T' + timeInput.value).toISOString();
+            } else if (dateInput.value) {
+                // Use custom date with current time
+                const now = new Date();
+                timestamp = new Date(dateInput.value + 'T' + now.toTimeString().slice(0,5)).toISOString();
+            } else {
+                // Use current date and time
+                timestamp = new Date().toISOString();
+            }
+            
+            const previousTotal = totalPushups;
+            totalPushups = Math.min(totalPushups + amount, GOAL);
+            
+            const entry = {
+                amount: amount,
+                timestamp: timestamp,
+                total: totalPushups
+            };
+            history.unshift(entry);
+            
+            // Clear inputs
+            dateInput.value = '';
+            timeInput.value = '';
+            amountInput.value = '';
+            
+            saveData();
+            updateAllDisplays();
+            
+            // Check for milestone
+            if (previousTotal < GOAL && totalPushups >= GOAL) {
+                showCelebration('🎉 GOAL COMPLETE! 🎉');
+            } else if (totalPushups % 1000 === 0 && totalPushups > 0) {
+                showCelebration(`${totalPushups} 💪`);
+            }
+        }
+
         // Update all displays
         function updateAllDisplays() {
             updateBasicStats();
@@ -759,32 +835,42 @@
                 };
             }
 
-            // Get unique days
+            // Get unique days using local date strings
             const dayMap = {};
             history.forEach(entry => {
                 const date = new Date(entry.timestamp);
-                const dayKey = date.toDateString();
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dayKey = `${year}-${month}-${day}`;
+                
                 if (!dayMap[dayKey]) {
                     dayMap[dayKey] = 0;
                 }
                 dayMap[dayKey] += entry.amount;
             });
 
-            const uniqueDays = Object.keys(dayMap).sort((a, b) => new Date(b) - new Date(a));
+            const uniqueDays = Object.keys(dayMap).sort((a, b) => b.localeCompare(a)); // Sort descending
             const daysActive = uniqueDays.length;
 
             // Calculate current streak
             let currentStreak = 0;
-            const today = new Date().toDateString();
-            const yesterday = new Date(Date.now() - 86400000).toDateString();
+            const today = new Date();
+            const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             
-            if (uniqueDays[0] === today || uniqueDays[0] === yesterday) {
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+            
+            if (uniqueDays[0] === todayKey || uniqueDays[0] === yesterdayKey) {
                 currentStreak = 1;
                 let checkDate = new Date(uniqueDays[0]);
                 
                 for (let i = 1; i < uniqueDays.length; i++) {
                     checkDate.setDate(checkDate.getDate() - 1);
-                    if (uniqueDays[i] === checkDate.toDateString()) {
+                    const checkKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+                    
+                    if (uniqueDays[i] === checkKey) {
                         currentStreak++;
                     } else {
                         break;
@@ -816,19 +902,27 @@
             const grid = document.getElementById('calendarGrid');
             grid.innerHTML = '';
 
-            // Get last 28 days
+            // Get last 28 days using local dates
             const days = [];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Start of today
+            
             for (let i = 27; i >= 0; i--) {
-                const date = new Date();
+                const date = new Date(today);
                 date.setDate(date.getDate() - i);
                 days.push(date);
             }
 
-            // Calculate pushups per day
+            // Calculate pushups per day using local date strings
             const dayMap = {};
             history.forEach(entry => {
                 const date = new Date(entry.timestamp);
-                const dayKey = date.toDateString();
+                // Create a local date string YYYY-MM-DD for comparison
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dayKey = `${year}-${month}-${day}`;
+                
                 if (!dayMap[dayKey]) {
                     dayMap[dayKey] = 0;
                 }
@@ -840,15 +934,23 @@
 
             // Create calendar cells
             days.forEach(date => {
-                const dayKey = date.toDateString();
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dayKey = `${year}-${month}-${day}`;
+                
                 const count = dayMap[dayKey] || 0;
                 const intensity = count === 0 ? 0 : Math.min(4, Math.ceil((count / maxPushups) * 4));
                 
                 const cell = document.createElement('div');
                 cell.className = `calendar-day active-${intensity}`;
-                if (date.toDateString() === new Date().toDateString()) {
+                
+                // Check if this is today
+                const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                if (dayKey === todayKey) {
                     cell.classList.add('today');
                 }
+                
                 cell.title = `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: ${count} pushups`;
                 
                 grid.appendChild(cell);
@@ -859,19 +961,33 @@
         function updateChart() {
             const ctx = document.getElementById('weeklyChart');
             
-            // Get last 7 days
+            // Get last 7 days using local dates
             const labels = [];
             const data = [];
             
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
             for (let i = 6; i >= 0; i--) {
-                const date = new Date();
+                const date = new Date(today);
                 date.setDate(date.getDate() - i);
-                const dayKey = date.toDateString();
+                
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dayKey = `${year}-${month}-${day}`;
                 
                 labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
                 
                 const dayTotal = history
-                    .filter(e => new Date(e.timestamp).toDateString() === dayKey)
+                    .filter(e => {
+                        const eDate = new Date(e.timestamp);
+                        const eYear = eDate.getFullYear();
+                        const eMonth = String(eDate.getMonth() + 1).padStart(2, '0');
+                        const eDay = String(eDate.getDate()).padStart(2, '0');
+                        const eKey = `${eYear}-${eMonth}-${eDay}`;
+                        return eKey === dayKey;
+                    })
                     .reduce((sum, e) => sum + e.amount, 0);
                 
                 data.push(dayTotal);
@@ -944,6 +1060,7 @@
             let html = '';
             history.slice(0, 50).forEach(entry => {
                 const date = new Date(entry.timestamp);
+                const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
                 const formattedDate = date.toLocaleDateString('en-US', { 
                     month: 'short', 
                     day: 'numeric',
@@ -957,7 +1074,7 @@
                 
                 html += `
                     <div class="history-item">
-                        <div class="history-date">${formattedDate} at ${formattedTime}</div>
+                        <div class="history-date">${dayOfWeek}, ${formattedDate} at ${formattedTime}</div>
                         <div class="history-amount">+${entry.amount}</div>
                     </div>
                 `;
