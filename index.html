@@ -471,11 +471,17 @@
             border-left: 3px solid var(--primary);
             border-radius: 6px;
             transition: all 0.3s ease;
+            gap: 15px;
         }
 
         .history-item:hover {
             background: rgba(255, 69, 0, 0.1);
             transform: translateX(5px);
+        }
+
+        .history-info {
+            flex: 1;
+            min-width: 0;
         }
 
         .history-date {
@@ -489,6 +495,26 @@
             font-size: 1.5rem;
             color: var(--primary);
             letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .history-delete {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.4);
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 0.9rem;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .history-delete:hover {
+            background: rgba(255, 0, 0, 0.4);
+            border-color: rgba(255, 0, 0, 0.6);
+            transform: scale(1.05);
         }
 
         .no-history {
@@ -903,16 +929,13 @@
             grid.innerHTML = '';
 
             // Get last 28 days using local dates
-            const days = [];
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Start of today
+            today.setHours(0, 0, 0, 0);
             
-            for (let i = 27; i >= 0; i--) {
-                const date = new Date(today);
-                date.setDate(date.getDate() - i);
-                days.push(date);
-            }
-
+            // Start from 27 days ago
+            const startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - 27);
+            
             // Calculate pushups per day using local date strings
             const dayMap = {};
             history.forEach(entry => {
@@ -932,8 +955,20 @@
             // Find max for scaling
             const maxPushups = Math.max(...Object.values(dayMap), 1);
 
-            // Create calendar cells
-            days.forEach(date => {
+            // Add offset cells to align with correct day of week
+            const firstDayOfWeek = startDate.getDay(); // 0 = Sunday
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-day';
+                emptyCell.style.opacity = '0.3';
+                grid.appendChild(emptyCell);
+            }
+
+            // Create calendar cells for the 28 days
+            for (let i = 0; i < 28; i++) {
+                const date = new Date(startDate);
+                date.setDate(date.getDate() + i);
+                
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 const day = String(date.getDate()).padStart(2, '0');
@@ -951,10 +986,11 @@
                     cell.classList.add('today');
                 }
                 
-                cell.title = `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: ${count} pushups`;
+                const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                cell.title = `${dateStr}: ${count} pushups`;
                 
                 grid.appendChild(cell);
-            });
+            }
         }
 
         // Update chart
@@ -1058,7 +1094,7 @@
             }
             
             let html = '';
-            history.slice(0, 50).forEach(entry => {
+            history.slice(0, 50).forEach((entry, index) => {
                 const date = new Date(entry.timestamp);
                 const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
                 const formattedDate = date.toLocaleDateString('en-US', { 
@@ -1074,13 +1110,27 @@
                 
                 html += `
                     <div class="history-item">
-                        <div class="history-date">${dayOfWeek}, ${formattedDate} at ${formattedTime}</div>
+                        <div class="history-info">
+                            <div class="history-date">${dayOfWeek}, ${formattedDate} at ${formattedTime}</div>
+                        </div>
                         <div class="history-amount">+${entry.amount}</div>
+                        <button class="history-delete" onclick="deleteSession(${index})">Delete</button>
                     </div>
                 `;
             });
             
             historyList.innerHTML = html;
+        }
+
+        // Delete a session
+        function deleteSession(index) {
+            if (confirm('Are you sure you want to delete this session?')) {
+                const deletedAmount = history[index].amount;
+                totalPushups = Math.max(0, totalPushups - deletedAmount);
+                history.splice(index, 1);
+                saveData();
+                updateAllDisplays();
+            }
         }
 
         // Show celebration
