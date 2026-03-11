@@ -1,6 +1,6 @@
 {
-  "name": "10K Pushup Challenge",
-  "short_name": "Pushup Tracker",
+  "name": "Pushup Tracker - 10K Challenge",
+  "short_name": "Pushups",
   "description": "Track your progress toward 10,000 pushups with analytics",
   "start_url": "/",
   "display": "standalone",
