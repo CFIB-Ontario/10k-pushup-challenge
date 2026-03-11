@@ -1,0 +1,16 @@
+{
+  "name": "Pushup Tracker",
+  "short_name": "Pushups",
+  "description": "Track your 10K pushup challenge",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#FF4500",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
